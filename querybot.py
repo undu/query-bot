@@ -3,7 +3,7 @@ from irc import IRCBot
 from google.googleSearch import GoogleSearch
 from music.musicStatus import MusicStatus
 from urlshortener.shortener import Shortener
-#from wolfram.wolfram import Wolfram
+from wolfram.wolfram import Wolfram
 from ConfigParser import SafeConfigParser
 import random
 import codecs
@@ -16,7 +16,7 @@ class QueryBot(IRCBot):
         # of the super class because otherwise it tries to register the callbacks and crashes
         # when the list is not defined
         shortener = Shortener()
-        modules = [shortener, GoogleSearch(), MusicStatus()]#, Wolfram()]
+        modules = [shortener, GoogleSearch(), MusicStatus(), Wolfram()]
         self.enabled_modules = [module for module in modules if not module.uses_settings()]
 
         #last response given, to avoid spam
