@@ -42,12 +42,10 @@ class QueryBot(IRCBot):
                     try:
 
                         module.set_configuration(configs[name])
-                        print ('module ' + str(module) + 'loaded with config')
                         self.enabled_modules.append(module)
                     except RuntimeError:
                         print ('Couldn\'t load configuration for module "' + str(module)) + '"'
 
-        print (self.enabled_modules)
         # now that we have decided what modules can function let's finish configuring them
         if(shortener in self.enabled_modules):
             for module in self.enabled_modules:
