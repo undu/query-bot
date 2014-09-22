@@ -3,8 +3,9 @@ from queryBot.responsemodule import IModule
 import lastfmapi
 import re
 
-api_key_g = 'api_key'
-service_g = 'service'
+settings_name_g = u'music'
+service_g       = u'service'
+api_key_g       = u'api_key'
 
 class MusicStatus(IModule):
     def __init__(self):
@@ -22,7 +23,7 @@ class MusicStatus(IModule):
         return [('^\.np( (\S.*))?', self.now_playing)]
 
     def get_settings_name(self):
-        return 'music'
+        return settings_name_g
 
     def get_configuration(self):
         return [(key, value) for (key, value) in self.settings.items() if not value is None]
@@ -71,7 +72,6 @@ class MusicStatus(IModule):
         if u'track' in response[u'recenttracks'].keys() and len(response[u'recenttracks'][u'track']) > 0:
             rtrack = response[u'recenttracks'][u'track'][0]
 
-            print (rtrack)
             play_text = u'last played'
             time      = u''
             if u'@attr' in rtrack.keys() and u'nowplaying' in rtrack[u'@attr'].keys():

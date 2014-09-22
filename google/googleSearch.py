@@ -48,43 +48,46 @@ class GoogleSearch(IModule):
         query_url = 'http://ajax.googleapis.com/ajax/services/search/web?v=2.0&q=%s' % \
                     query
 
-        # Query google
-        sock = httplib2.Http(timeout=1)
-        headers, response = sock.request(query_url)
 
-        # Check result and clean it up for displaying
-        if headers['status'] in (200, '200'):
-            response = json.loads(response)
-            if response['responseStatus'] == 403:
-                url = u'http://www.google.com/?q=%s' % query
-                body = u'resultado: '
-            else:
-                try:
-                    url     = response['responseData']['results'][0]['unescapedUrl']
-                    title   = response['responseData']['results'][0]['titleNoFormatting']
-                    content = response['responseData']['results'][0]['content']
+        body = u'resultado: '
+        url = url = u'http://www.google.com/?q=%s' % query
 
-                    # Convert HTML-encoded characters to sane encoding
-                    content = HTMLParser.HTMLParser().unescape(content)
-                    content = re.sub(r'&#(?P<n>[0-9]+);', char, content, re.UNICODE)
-                    content = re.sub(r'<[^>]+>', '', content)
-                    content = re.sub(r'\s+', ' ', content)
+        try:
+            # Query google
+            sock = httplib2.Http(timeout=1)
+            headers, response = sock.request(query_url)
 
-                    title   = HTMLParser.HTMLParser().unescape(title)
-                    title   = re.sub(r'&#(?P<n>[0-9]+);', char, title, re.UNICODE)
-                    title   = re.sub(r'<[^>]+>', '', title, re.UNICODE)
-                    title   = re.sub(r'\s+', '', title, re.UNICODE)
+            # Check result and clean it up for displaying
+            if headers['status'] in (200, '200'):
+                response = json.loads(response)
+                if response['responseStatus'] != 403:
+                    try:
+                        url     = response['responseData']['results'][0]['unescapedUrl']
+                        title   = response['responseData']['results'][0]['titleNoFormatting']
+                        content = response['responseData']['results'][0]['content']
 
-                    body = u'%s: %s -- ' % (title, content)
+                        # Convert HTML-encoded characters to sane encoding
+                        content = HTMLParser.HTMLParser().unescape(content)
+                        content = re.sub(r'&#(?P<n>[0-9]+);', char, content, re.UNICODE)
+                        content = re.sub(r'<[^>]+>', '', content)
+                        content = re.sub(r'\s+', ' ', content)
 
-                except (IndexError, TypeError):
-                    url = response[u'responseData'][u'cursor'][u'moreResultsUrl']
-                    body = u'0 resultados -- '
+                        title   = HTMLParser.HTMLParser().unescape(title)
+                        title   = re.sub(r'&#(?P<n>[0-9]+);', char, title, re.UNICODE)
+                        title   = re.sub(r'<[^>]+>', '', title, re.UNICODE)
+                        title   = re.sub(r'\s+', '', title, re.UNICODE)
 
-            # shorten the url if available and construct the final message
-            if(self.shorten_url is None):
-                url = url.decode('utf-8', errors='ignore')
-            else:
-                url = self.shorten_url(url).decode('utf-8', errors='ignore')
+                        body = u'%s: %s -- ' % (title, content)
 
+                    except (IndexError, TypeError):
+                        url = response[u'responseData'][u'cursor'][u'moreResultsUrl']
+                        body = u'0 resultados -- '
+
+                # shorten the url if available and construct the final message
+                if(self.shorten_url is None):
+                    url = url.decode('utf-8', errors='ignore')
+                else:
+                    url = self.shorten_url(url).decode('utf-8', errors='ignore')
+
+        finally:
             return body + url

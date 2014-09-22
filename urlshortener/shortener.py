@@ -2,10 +2,10 @@
 from queryBot.responsemodule import IModule
 import bitly_api
 
+settings_name_g = u'url_short'
 api_key_g       = u'api_key'
 user_g          = u'user'
 service_g       = u'service'
-settings_name_g = u'url_short'
 
 class Shortener(IModule):
     def __init__(self):

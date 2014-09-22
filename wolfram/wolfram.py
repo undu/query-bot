@@ -6,8 +6,9 @@ import socket
 import xmltodict
 import re
 
-api_key_g = 'api_key'
-timeout_g = 'timeout'
+settings_name_g = u'walpha'
+api_key_g = u'api_key'
+timeout_g = u'timeout'
 
 class Wolfram(IModule):
     def __init__(self):
@@ -24,7 +25,7 @@ class Wolfram(IModule):
         return [('^\.(c|wa) (\S.*)', self.wolfAlpha)]
 
     def get_settings_name(self):
-        return u'walpha'
+        return settings_name_g
 
     def get_configuration(self):
         return [(key, value) for (key, value) in self.settings.items() if not value is None]
