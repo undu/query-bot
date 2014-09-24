@@ -80,7 +80,11 @@ class Wolfram(IModule):
 
                 pods = response[u'queryresult'][u'pod']
 
+                if(response[u'@numpods'] == u'1'):
+                    pods = [pods]
+
                 for pod in pods:
+                    print pod
                     # Check if we can identify pods and they have information where we can fetch it
                     if u'@id' in pod.keys() and \
                        u'subpod' in pod.keys() and u'plaintext' in pod[u'subpod'].keys():
