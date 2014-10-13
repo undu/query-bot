@@ -113,7 +113,7 @@ class MusicStatus(IModule):
             except lastfmapi.LastFmApiException:
                 pass
 
-            message = u'{user} {done}: {song} — {artist}{heart}{tags}{when}'.format(
+            message = u'{user} {done}: {artist} — {song}{heart}{tags}{when}'.format(
                 user   = luser,
                 done   = play_text,
                 song   = ltitle,
