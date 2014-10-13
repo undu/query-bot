@@ -23,6 +23,7 @@ THE SOFTWARE.
 import logging
 import random
 import re
+import time
 
 try:
     from gevent import socket
@@ -31,6 +32,21 @@ except ImportError:
 
 from logging.handlers import RotatingFileHandler
 
+def get_logger(logger_name, filename, logLevel):
+    log = logging.getLogger(logger_name)
+    log.setLevel(logging.INFO)
+
+    if filename:
+        handler = RotatingFileHandler(filename, maxBytes=1024*1024, backupCount=2)
+        handler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
+        log.addHandler(handler)
+
+    if logLevel == logging.DEBUG or not filename:
+        stream_handler = logging.StreamHandler()
+        stream_handler.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
+        log.addHandler(stream_handler)
+
+    return log
 
 class IRCConnection(object):
     """\
@@ -47,14 +63,7 @@ class IRCConnection(object):
     quit_re = re.compile(':(?P<nick>.*?)!\S+\s+?QUIT\s+.*')
     registered_re = re.compile(':(?P<server>.*?)\s+(?:376|422)')
 
-    # mapping for logging verbosity
-    verbosity_map = {
-        0: logging.ERROR,
-        1: logging.INFO,
-        2: logging.DEBUG,
-    }
-
-    def __init__(self, server, port, nick, logfile=None, verbosity=1, needs_registration=True):
+    def __init__(self, server, port, nick, logfile=None, verbosity=logging.INFO, needs_registration=True):
         self.server = server
         self.port = port
         self.nick = self.base_nick = nick
@@ -65,23 +74,7 @@ class IRCConnection(object):
         self._registered = not needs_registration
         self._out_buffer = []
         self._callbacks = []
-        self.logger = self.get_logger('ircconnection.logger', self.logfile)
-
-    def get_logger(self, logger_name, filename):
-        log = logging.getLogger(logger_name)
-        log.setLevel(self.verbosity_map.get(self.verbosity, logging.INFO))
-
-        if self.logfile:
-            handler = RotatingFileHandler(filename, maxBytes=1024*1024, backupCount=2)
-            handler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
-            log.addHandler(handler)
-
-        if self.verbosity == 2 or not self.logfile:
-            stream_handler = logging.StreamHandler()
-            stream_handler.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
-            log.addHandler(stream_handler)
-
-        return log
+        self.logger = get_logger('ircconnection.logger', self.logfile, verbosity)
 
     def send(self, data, force=False):
         """\
@@ -104,8 +97,10 @@ class IRCConnection(object):
         try:
             self._sock.connect((self.server, self.port))
         except socket.error:
-            self.logger.error('Unable to connect to %s on port %d' % (self.server, self.port), exc_info=1)
+            self.logger.error('Unable to connect to {} on port {}'.format(self.server, self.port), exc_info=1)
             return False
+        except socket.timeout:
+            self.logger.error('Connection to {} timed out'.format(self.server), exc_info=1)
 
         self._sock_file = self._sock.makefile()
         self.register_nick()
@@ -254,15 +249,35 @@ class IRCConnection(object):
         """
         patterns = self.dispatch_patterns()
         self.logger.debug('entering receive loop')
-
+        self._sock.settimeout(500)
+        timedOut = False
         while 1:
             try:
                 data = self._sock_file.readline()
             except socket.error:
                 data = None
+                self.logger.error('Connection to {} closed'.format(self.server), exc_info=1)
+            except socket.timeout:
+                timedOut = True
+            except Exception, e:
+                print type(e.reason)
+
+            if timedOut:
+                self._sock.settimeout(10)
+                try:
+                    self.send('PING {}'.format(self.server), True)
+                    data = self._sock_file.readline()
+                except socket.error:
+                    data = None
+                    self.logger.error('Connection to {} closed'.format(self.server), exc_info=1)
+                except socket.timeout:
+                    data = None
+                    self.logger.error('Connection to {} timed out'.format(self.server), exc_info=1)
+                finally:
+                    self._sock.settimeout(500)
+                timedOut = False
 
             if not data:
-                self.logger.info('server closed connection')
                 self.close()
                 return True
 
@@ -292,6 +307,8 @@ class IRCBot(object):
 
         # register callbacks with the connection
         self.register_callbacks()
+
+        self.logger = get_logger('ircbot.logger', None, logging.INFO)
 
     def register_callbacks(self):
         """\
@@ -349,17 +366,30 @@ class IRCBot(object):
         Makes the bots connect to a server and join some channels, fails
         gracefully
         """
+        baseTime = 0.25
+        maxTime = 300
+        waitTime = baseTime
         while 1:
             try:
-                self.conn.connect()
+                if self.conn.connect():
+                    waitTime = baseTime
+                    for channel in channels:
+                        self.conn.join(channel)
+                    if self.conn.enter_event_loop():
+                        # the bot disconnected
+                        self.conn.close()
+                else:
+                    if waitTime < maxTime:
+                        waitTime *= 2
+                        if waitTime > maxTime:
+                            waitTime = maxTime
 
-                for channel in channels:
-                    self.conn.join(channel)
-
-                self.conn.enter_event_loop()
             except (KeyboardInterrupt, SystemExit):
                 self.exit_cleanup()
                 return
+
+            time.sleep(waitTime)
+            self.logger.info('bot reconnecting, waited {} seconds'.format(waitTime))
 
 
 class SimpleSerialize(object):
