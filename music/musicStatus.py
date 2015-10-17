@@ -1,5 +1,5 @@
 #coding:utf8
-from queryBot.responsemodule import IModule
+from responsemodule import IModule
 import lastfmapi
 import re
 

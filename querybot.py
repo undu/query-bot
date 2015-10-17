@@ -40,7 +40,6 @@ class QueryBot(IRCBot):
             for module, name in map(get_conf_name, modules):
                 if name in configs:
                     try:
-
                         module.set_configuration(configs[name])
                         self.enabled_modules.append(module)
                     except RuntimeError:

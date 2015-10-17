@@ -1,7 +1,13 @@
 #encoding: utf-8
-from queryBot.responsemodule import IModule
+from responsemodule import IModule
 import bitly_api
 
+''' Example config:
+[url_short]
+service=bitly
+user=username
+api_key=R_12345678901234567890123456789012
+'''
 settings_name_g = u'url_short'
 api_key_g       = u'api_key'
 user_g          = u'user'
@@ -31,7 +37,6 @@ class Shortener(IModule):
         for key, value in settings.items():
             if key in settings:
                 self.settings[key] = value
-
         # now we can configure the module
         if(self.settings[service_g] == u'bitly' and \
            not (self.settings[user_g] is None or \

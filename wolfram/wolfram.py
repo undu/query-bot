@@ -1,13 +1,19 @@
 #encoding: utf-8
-from queryBot.responsemodule import IModule
+from responsemodule import IModule
 import urllib
 import httplib2
 import socket
 import xmltodict
 import re
 
+'''
+Example config
+[walpha]
+app_id=1LALAL-2LALA3LAL4
+timeout=6
+'''
 settings_name_g = u'walpha'
-api_key_g = u'api_key'
+api_key_g = u'app_id'
 timeout_g = u'timeout'
 
 class Wolfram(IModule):
@@ -31,11 +37,10 @@ class Wolfram(IModule):
         return [(key, value) for (key, value) in self.settings.items() if not value is None]
 
     def set_configuration(self, settings):
-        #fetch the settings
+        # fetch the settings
         for key, value in settings.items():
             if key in settings:
                 self.settings[key] = value
-
         # signal when the module wasn't properly configured
         try:
             if self.settings[api_key_g] is None or self.settings[timeout_g] is None:
@@ -59,9 +64,10 @@ class Wolfram(IModule):
         query = re.sub(r'^\.(c|wa)', u'', message.decode('utf-8'), re.UNICODE).encode('utf-8')
         query = query.strip(' \t\n\r')
         query = urllib.quote(query)
-        queryurl = u'http://api.wolframalpha.com/v2/query?input={q}&appid={key}&format=plaintext&parsetimeout=0.5&formattimeout=0.5'.format(
+        queryurl = u'http://api.wolframalpha.com/v2/query?input={q}&appid={key}&format=plaintext&parsetimeout={timeout}&formattimeout={timeout}'.format(
                     q = query,
-                    key = self.settings[api_key_g])
+                    key = self.settings[api_key_g],
+                    timeout = self.settings[timeout_g])
 
         # construct the url and shorten it if we can
         url = u'http://www.wolframalpha.com/input/?i={q}'.format(q = query)
@@ -77,16 +83,19 @@ class Wolfram(IModule):
 
                 int_found = False
                 res_found = False
+                interpretation = u''
+                result = u''
 
+                # This statement throws an IndexError whenever wolframalpha cannot interpret the input
                 pods = response[u'queryresult'][u'pod']
 
-                if(response[u'@numpods'] == u'1'):
+                if(response[u'queryresult'][u'@numpods'] == u'1'):
                     pods = [pods]
 
                 for pod in pods:
                     # Check if we can identify pods and they have information where we can fetch it
                     if u'@id' in pod.keys() and \
-                       u'subpod' in pod.keys() and u'plaintext' in pod[u'subpod'].keys():
+                       pod[u'@numsubpods'] == 1 and u'plaintext' in pod[u'subpod'].keys():
                         if pod[u'@id'] == u'Input':
                             interpretation = pod[u'subpod'][u'plaintext']
                             int_found = True
@@ -102,11 +111,11 @@ class Wolfram(IModule):
                 if not res_found:
                     ismain = lambda d: u'@primary' in d.keys()
                     mainresult = filter(ismain, response[u'queryresult'][u'pod'])[0][u'subpod']
-                    result = mainresult[u'plaintext'][u'#text']
+                    result = mainresult[u'plaintext']
 
                 return u'{inter}: {res} -- {link}'.format(
                     inter = interpretation,
                     res = result,
                     link = url)
         except (socket.timeout, KeyError, TypeError, IndexError):
-            return u'W|A dice {}'.format(url)
+            return u'{}'.format(url)

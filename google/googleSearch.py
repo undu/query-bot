@@ -1,5 +1,5 @@
 #coding:utf-8
-from queryBot.responsemodule import IModule
+from responsemodule import IModule
 import re
 import urllib
 import HTMLParser
@@ -49,7 +49,7 @@ class GoogleSearch(IModule):
                     query
 
 
-        body = u'resultado: '
+        body = u''
         url = url = u'http://www.google.com/?q=%s' % query
 
         try:
@@ -81,7 +81,7 @@ class GoogleSearch(IModule):
 
                     except (IndexError, TypeError):
                         url = response[u'responseData'][u'cursor'][u'moreResultsUrl']
-                        body = u'0 resultados -- '
+                        body = u''
 
                 # shorten the url if available and construct the final message
                 if(self.shorten_url is None):
